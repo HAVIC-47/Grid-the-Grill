@@ -22,6 +22,15 @@ const INK = "#f3f4f6";
 const MUTED = "#8b919c";
 const SPEED = "#e10600";
 
+/** Blends a hex colour toward another by `t` (0–1). Canvas has no color-mix(). */
+function mix(hex: string, toward: string, t: number): string {
+  const parse = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [r1, g1, b1] = parse(hex);
+  const [r2, g2, b2] = parse(toward);
+  const c = (a: number, b: number) => Math.round(a + (b - a) * t);
+  return `rgb(${c(r1, r2)}, ${c(g1, g2)}, ${c(b1, b2)})`;
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -179,15 +188,42 @@ export async function renderBoardPng(o: ExportOptions): Promise<Blob> {
       return;
     }
 
-    const cell = ctx.createLinearGradient(x, y, x, y + cellH);
-    cell.addColorStop(0, "#15181e");
-    cell.addColorStop(1, "#0b0d11");
+    const driverId = o.board[pos] ?? null;
+    const driver = driverId === null ? null : driverById(driverId);
+    const team = driver ? TEAMS[driver.team] : null;
+
+    const cell = ctx.createLinearGradient(x, y, x + cellW * 0.4, y + cellH);
+    if (team) {
+      cell.addColorStop(0, mix(team.primary, "#05060a", 0.38));
+      cell.addColorStop(0.5, mix(team.primary, "#05060a", 0.6));
+      cell.addColorStop(1, mix(team.primary, "#05060a", 0.84));
+    } else {
+      cell.addColorStop(0, "#15181e");
+      cell.addColorStop(1, "#0b0d11");
+    }
     ctx.fillStyle = cell;
     ctx.fillRect(x, y, cellW, cellH);
 
+    if (team) {
+      // accent stripe raked across the livery
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, cellW, cellH);
+      ctx.clip();
+      ctx.strokeStyle = team.accent;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x + cellW * 0.52, y - 10);
+      ctx.lineTo(x - 10, y + cellH * 0.72);
+      ctx.stroke();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
     // caption
     ctx.font = `600 10px ${o.fontDisplay}`;
-    ctx.fillStyle = MUTED;
+    ctx.fillStyle = team ? "rgba(255,255,255,0.72)" : MUTED;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     let caption = tile.caption.toUpperCase();
@@ -196,8 +232,7 @@ export async function renderBoardPng(o: ExportOptions): Promise<Blob> {
     }
     ctx.fillText(caption, x + cellW / 2, y + 10);
 
-    const driverId = o.board[pos] ?? null;
-    const chipH = driverId === null ? 0 : 26;
+    const chipH = driver ? 34 : 0;
 
     drawTrait(
       ctx,
@@ -209,26 +244,49 @@ export async function renderBoardPng(o: ExportOptions): Promise<Blob> {
       o.fontBody,
     );
 
-    if (driverId !== null) {
-      const driver = driverById(driverId);
-      const team = TEAMS[driver.team];
+    if (driver && team) {
       const chipY = y + cellH - chipH - 8;
+      const chipX = x + 8;
+      const chipW = cellW - 16;
       ctx.fillStyle = team.primary;
-      roundRect(ctx, x + 8, chipY, cellW - 16, chipH, 5);
+      roundRect(ctx, chipX, chipY, chipW, chipH, 5);
       ctx.fill();
 
       ctx.fillStyle = team.accent;
-      ctx.fillRect(x + 8, chipY + chipH - 3, cellW - 16, 3);
+      ctx.fillRect(chipX, chipY + chipH - 3, chipW, 3);
+
+      // team code badge
+      const badgeW = 34;
+      const badgeH = 18;
+      const badgeX = chipX + 8;
+      const badgeY = chipY + (chipH - 3 - badgeH) / 2;
+      ctx.fillStyle = "rgba(0,0,0,0.38)";
+      ctx.strokeStyle = team.accent;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(badgeX + 5, badgeY);
+      ctx.lineTo(badgeX + badgeW, badgeY);
+      ctx.lineTo(badgeX + badgeW - 5, badgeY + badgeH);
+      ctx.lineTo(badgeX, badgeY + badgeH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `700 9px ${o.fontDisplay}`;
+      ctx.fillText(team.short, badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
 
       ctx.fillStyle = team.ink;
       ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.font = `700 13px ${o.fontDisplay}`;
-      ctx.fillText(driver.last.toUpperCase(), x + 16, chipY + chipH / 2);
+      ctx.font = `700 15px ${o.fontDisplay}`;
+      ctx.fillText(driver.last.toUpperCase(), badgeX + badgeW + 8, chipY + (chipH - 3) / 2);
+
       ctx.textAlign = "right";
-      ctx.font = `700 12px ${o.fontDisplay}`;
+      ctx.font = `700 13px ${o.fontDisplay}`;
       ctx.globalAlpha = 0.75;
-      ctx.fillText(String(driver.number), x + cellW - 16, chipY + chipH / 2);
+      ctx.fillText(String(driver.number), chipX + chipW - 10, chipY + (chipH - 3) / 2);
       ctx.globalAlpha = 1;
     }
   });

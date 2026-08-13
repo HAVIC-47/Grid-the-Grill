@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { FREE_POSITIONS, TILES, type Tile } from "@/lib/board";
-import { DRIVERS, driverById } from "@/lib/drivers";
+import { DRIVERS, TEAMS, driverById } from "@/lib/drivers";
 import { renderBoardPng } from "@/lib/exportBoard";
 import DriverCard, { DriverChip } from "@/components/DriverCard";
 import Confetti from "@/components/Confetti";
@@ -686,11 +686,17 @@ function Square({
   }
 
   const driver = driverId === null ? null : driverById(driverId);
+  const team = driver ? TEAMS[driver.team] : null;
 
   return (
     <button
       type="button"
       data-drop={pos}
+      style={
+        team
+          ? ({ "--team": team.primary, "--accent": team.accent } as CSSProperties)
+          : undefined
+      }
       onClick={() => onActivate(pos)}
       onPointerDown={(e) => {
         if (driverId !== null) onPointerDown(e, driverId, pos);
@@ -701,21 +707,30 @@ function Square({
           : `${tile.caption}: ${tile.text}. Empty square.`
       }
       className={`tile relative flex aspect-[1/1.06] cursor-pointer flex-col items-center overflow-hidden px-1 pt-1.5 pb-1 text-center transition-colors duration-200 sm:px-1.5 ${
-        driver ? "touch-none bg-tile-deep" : "bg-gradient-to-b from-tile to-tile-deep hover:from-[#1c2028] hover:to-[#101319]"
+        driver
+          ? "tile-placed touch-none"
+          : "bg-gradient-to-b from-tile to-tile-deep hover:from-[#1c2028] hover:to-[#101319]"
       } ${hovered ? "shadow-[inset_0_0_0_2px_#ff8a00]" : ""} ${
         armed && !driver ? "shadow-[inset_0_0_0_1px_rgba(255,138,0,0.5)]" : ""
       }`}
     >
-      <span className="tile-caption w-full truncate text-muted" title={tile.caption}>
+      <span
+        className={`tile-caption relative z-10 w-full truncate ${driver ? "text-white/65" : "text-muted"}`}
+        title={tile.caption}
+      >
         {tile.caption}
       </span>
 
-      <span className="tile-text flex min-h-0 flex-1 items-center justify-center overflow-hidden font-semibold text-balance text-ink">
+      <span
+        className={`tile-text relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden font-semibold text-balance text-ink ${
+          driver ? "[text-shadow:0_2px_8px_rgba(0,0,0,0.6)]" : ""
+        }`}
+      >
         {tile.text}
       </span>
 
-      <span className="mt-1 flex h-[18px] w-full items-end">
-        {driver ? <DriverChip driver={driver} /> : <span className="h-[2px] w-full rounded-full bg-white/10" />}
+      <span className="tile-slot relative z-10 mt-1 flex w-full items-stretch">
+        {driver ? <DriverChip driver={driver} /> : <span className="mt-auto h-[2px] w-full rounded-full bg-white/10" />}
       </span>
     </button>
   );

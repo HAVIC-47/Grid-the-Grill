@@ -76,22 +76,15 @@ export default function DriverCard({
   );
 }
 
-/** Compact strip shown once a driver is dropped on a trait square. */
+/** Name plate shown once a driver is dropped on a trait square. */
 export function DriverChip({ driver }: { driver: Driver }) {
   const team = TEAMS[driver.team];
 
   return (
-    <span
-      className="flex w-full items-center gap-1 rounded-md px-1 py-0.5"
-      style={{ background: team.primary, color: team.ink }}
-    >
-      <TeamBadge team={team} className="h-3 w-5 shrink-0" />
-      <span className="font-display truncate text-[0.6rem] leading-none font-bold uppercase">
-        {driver.last}
-      </span>
-      <span className="font-display ml-auto text-[0.55rem] leading-none font-bold opacity-75">
-        {driver.number}
-      </span>
+    <span className="tile-driver" style={{ background: team.primary, color: team.ink }}>
+      <TeamBadge team={team} className="tile-driver-badge" />
+      <span className="tile-driver-name font-display">{driver.last}</span>
+      <span className="tile-driver-num font-display">{driver.number}</span>
     </span>
   );
 }

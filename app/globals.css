@@ -207,6 +207,79 @@ body {
   line-height: 1.18;
 }
 
+/* A square holding a driver wears that team's livery, dark enough that the
+   trait text keeps its contrast. */
+.tile-placed {
+  background:
+    radial-gradient(110% 70% at 82% 4%, color-mix(in oklab, var(--accent) 20%, transparent), transparent 62%),
+    linear-gradient(
+      164deg,
+      color-mix(in oklab, var(--team) 62%, #05060a 38%) 0%,
+      color-mix(in oklab, var(--team) 40%, #05060a 60%) 48%,
+      color-mix(in oklab, var(--team) 16%, #05060a 84%) 100%
+    );
+}
+
+.tile-placed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    114deg,
+    transparent 44%,
+    color-mix(in oklab, var(--accent) 55%, transparent) 44.5%,
+    color-mix(in oklab, var(--accent) 55%, transparent) 46.5%,
+    transparent 47%
+  );
+  pointer-events: none;
+}
+
+/* Name plate at the foot of a filled square. */
+.tile-slot {
+  height: 21cqi;
+  min-height: 17px;
+  max-height: 34px;
+}
+
+.tile-driver {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  gap: 4cqi;
+  border-radius: 4px;
+  padding: 0 3cqi;
+}
+
+.tile-driver-badge {
+  width: 15cqi;
+  min-width: 15px;
+  max-width: 26px;
+  height: 9.5cqi;
+  min-height: 10px;
+  max-height: 17px;
+  flex-shrink: 0;
+}
+
+.tile-driver-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: clamp(0.52rem, 9.4cqi, 0.86rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tile-driver-num {
+  font-size: clamp(0.45rem, 8cqi, 0.74rem);
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.75;
+}
+
 *:focus-visible {
   outline: 2px solid var(--color-amber);
   outline-offset: 2px;
