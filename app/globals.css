@@ -1,26 +1,172 @@
 @import "tailwindcss";
 
+@theme {
+  --color-carbon: #06070a;
+  --color-panel: #0d0f14;
+  --color-tile: #15181e;
+  --color-tile-deep: #0b0d11;
+  --color-ink: #f3f4f6;
+  --color-muted: #8b919c;
+  --color-speed: #e10600;
+  --color-amber: #ff8a00;
+  --color-frame: #d6d8dd;
+
+  --font-display: var(--font-chakra), "Arial Narrow", sans-serif;
+  --font-body: var(--font-titillium), system-ui, sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-carbon);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+/* Track surface: fine carbon weave + a low red horizon glow. */
+.track-bg {
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(225, 6, 0, 0.22), transparent 60%),
+    radial-gradient(90% 60% at 50% 115%, rgba(255, 138, 0, 0.14), transparent 65%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 6px);
+}
+
+/* Diagonal speed hatch used behind the headline. */
+.speed-hatch {
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(225, 6, 0, 0.9) 0 3px,
+    transparent 3px 9px
+  );
+}
+
+.chequer {
+  background-image:
+    linear-gradient(45deg, currentColor 25%, transparent 25% 75%, currentColor 75%),
+    linear-gradient(45deg, currentColor 25%, transparent 25% 75%, currentColor 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 6px 6px;
+}
+
+@keyframes stamp-in {
+  0% { transform: scale(0.6) rotate(-14deg); opacity: 0; }
+  60% { transform: scale(1.08) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes line-sweep {
+  0% { transform: translateX(-110%); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(225, 6, 0, 0.55); }
+  100% { box-shadow: 0 0 0 22px rgba(225, 6, 0, 0); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toast-in {
+  0% { opacity: 0; transform: translateY(18px) scale(0.96); }
+  12% { opacity: 1; transform: translateY(0) scale(1); }
+  88% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+
+.animate-stamp { animation: stamp-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-rise { animation: rise-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-toast { animation: toast-in 2600ms ease forwards; }
+.animate-ring { animation: pulse-ring 900ms ease-out; }
+
+.line-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: line-sweep 900ms ease-out;
+  pointer-events: none;
+}
+
+/* Driver card: type scales off the card's own width so long surnames still fit. */
+.driver-card {
+  container-type: inline-size;
+}
+
+.driver-badge {
+  width: 36cqi;
+  height: 22cqi;
+  min-width: 26px;
+  min-height: 16px;
+}
+
+.driver-num {
+  font-size: clamp(0.5rem, 9cqi, 0.78rem);
+}
+
+.driver-first {
+  font-size: clamp(0.42rem, 7.4cqi, 0.7rem);
+}
+
+.driver-last {
+  font-size: clamp(0.6rem, 13.5cqi, 1.15rem);
+  line-height: 1.02;
+}
+
+.driver-watermark {
+  font-size: clamp(1.8rem, 46cqi, 3.6rem);
+}
+
+/* Driver card: livery sheen across the top edge. */
+.driver-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent);
+  pointer-events: none;
+}
+
+/* Type scales off the tile's own width, so the board reads the same at any size. */
+.tile {
+  container-type: inline-size;
+}
+
+/* Tiny caption strip that sits above each statement, like the real board. */
+.tile-caption {
+  font-family: var(--font-display);
+  font-size: clamp(0.34rem, 6.4cqi, 0.6rem);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.tile-text {
+  font-size: clamp(0.58rem, 11.6cqi, 1.02rem);
+  line-height: 1.18;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,69 +1,43 @@
-import Image from "next/image";
+import BingoGame from "@/components/BingoGame";
+import GridLogo from "@/components/GridLogo";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="relative mx-auto flex w-full max-w-[900px] flex-1 flex-col items-center px-4 py-8 sm:px-6 sm:py-10 lg:h-dvh lg:max-h-dvh lg:min-h-0 lg:max-w-[1600px] lg:overflow-hidden lg:px-5 lg:py-3">
+      <BingoGame>
+        <header className="animate-rise flex w-full max-w-[640px] flex-col items-center text-center lg:max-w-none lg:items-start lg:text-left">
+          <div className="flex w-full items-center gap-3">
+            <span className="chequer h-4 w-10 text-white/70 lg:hidden" />
+            <span className="speed-hatch h-[3px] flex-1 rounded-full lg:hidden" />
+            <GridLogo className="h-7 w-11 shrink-0" />
+            <span className="speed-hatch h-[3px] flex-1 rounded-full" />
+            <span className="chequer h-4 w-10 text-white/70" />
+          </div>
+
+          <h1 className="font-display mt-3 text-4xl leading-[0.86] font-bold tracking-tight uppercase sm:text-5xl xl:text-6xl">
+            Grid the <span className="text-speed">Grill</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+          <p className="mt-2 max-w-lg text-sm leading-snug text-muted lg:max-w-xl">
+            Twenty-two traits, twenty-two drivers from the 2026 grid. Drag each driver card
+            onto the trait you think belongs to them.
+          </p>
+
+        </header>
+      </BingoGame>
+
+      <p className="font-display absolute bottom-3 left-5 hidden text-[0.6rem] tracking-[0.18em] text-muted/70 uppercase lg:block">
+        Progress saved in this browser · Fan-made · Not affiliated with Formula 1
+      </p>
+
+      <footer className="mt-8 w-full shrink-0 border-t border-white/10 pt-4 lg:hidden">
+        <div className="flex flex-col items-center gap-2 text-center text-xs text-muted sm:flex-row sm:justify-between sm:text-left lg:text-[0.68rem]">
+          <p>Progress is saved in this browser.</p>
+          <p className="font-display tracking-[0.18em] uppercase">
+            Fan-made · Not affiliated with Formula 1
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </footer>
+    </main>
   );
 }
