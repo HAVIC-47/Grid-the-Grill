@@ -99,9 +99,44 @@ body {
   pointer-events: none;
 }
 
-/* Driver card: type scales off the card's own width so long surnames still fit. */
+/* Driver card: a livery field in the team's colours, darkening toward the
+   name block so the type always clears contrast. Type scales off the card's
+   own width so long surnames still fit at any card size. */
 .driver-card {
   container-type: inline-size;
+  isolation: isolate;
+  background:
+    radial-gradient(120% 80% at 78% 6%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
+    linear-gradient(
+      163deg,
+      color-mix(in oklab, var(--team) 88%, #ffffff 12%) 0%,
+      var(--team) 34%,
+      color-mix(in oklab, var(--team) 62%, #05060a 38%) 68%,
+      color-mix(in oklab, var(--team) 22%, #05060a 78%) 100%
+    );
+}
+
+/* Livery sweep: one hard accent stripe plus a soft highlight. */
+.driver-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(114deg, transparent 40%, color-mix(in oklab, var(--accent) 70%, transparent) 40.5%, color-mix(in oklab, var(--accent) 70%, transparent) 43%, transparent 43.5%),
+    linear-gradient(114deg, transparent 46%, rgba(255, 255, 255, 0.16) 46.5%, rgba(255, 255, 255, 0.16) 53%, transparent 53.5%);
+  pointer-events: none;
+}
+
+/* Scrim under the name block. */
+.driver-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 62%;
+  z-index: 0;
+  background: linear-gradient(180deg, transparent, rgba(4, 5, 8, 0.62) 55%, rgba(4, 5, 8, 0.9));
+  pointer-events: none;
 }
 
 .driver-badge {
@@ -112,29 +147,45 @@ body {
 }
 
 .driver-num {
-  font-size: clamp(0.5rem, 9cqi, 0.78rem);
+  font-size: clamp(0.55rem, 10cqi, 0.85rem);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
 .driver-first {
-  font-size: clamp(0.42rem, 7.4cqi, 0.7rem);
+  font-size: clamp(0.42rem, 7.2cqi, 0.7rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.1;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
 }
 
+/* Size comes from the component: long surnames step down so they never
+   break mid-word on a narrow card. */
 .driver-last {
-  font-size: clamp(0.6rem, 13.5cqi, 1.15rem);
-  line-height: 1.02;
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
 }
 
+/* Race number ghosted into the livery. */
 .driver-watermark {
-  font-size: clamp(1.8rem, 46cqi, 3.6rem);
-}
-
-/* Driver card: livery sheen across the top edge. */
-.driver-card::before {
-  content: "";
   position: absolute;
-  inset: 0 0 auto 0;
-  height: 40%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent);
+  right: -3cqi;
+  bottom: 6cqi;
+  z-index: 0;
+  font-size: clamp(2rem, 56cqi, 4.6rem);
+  font-weight: 700;
+  line-height: 0.78;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.22);
   pointer-events: none;
 }
 

@@ -12,6 +12,9 @@ Built with Next.js 16 (App Router) + Tailwind CSS v4, static-rendered, zero runt
 - Each driver can only sit on one trait — 22 drivers, 22 traits.
 - **Shuffle paddock** reorders the cards, **Clear board** returns everyone, **Copy grid**
   puts your trait → driver list on the clipboard.
+- **Save PNG** renders the board to an image and downloads it. **Share** sends that same
+  image to the OS share sheet (Web Share level 2), falling back to copying it to the
+  clipboard, then to a download.
 - Progress + timer persist in `localStorage`.
 
 There is no built-in answer key: the app never claims which driver a trait "really"
@@ -43,6 +46,7 @@ Or push the repo to GitHub and hit **Import Project** at vercel.com.
 | `lib/board.ts` | Trait text + captions for the 24 squares |
 | `lib/drivers.ts` | 2026 drivers, numbers, teams and team colours |
 | `components/BingoGame.tsx` | Drag/drop state, placement rules, timer, persistence |
+| `lib/exportBoard.ts` | Canvas renderer for the shareable board PNG (no dependencies) |
 | `components/DriverCard.tsx` | Driver card + the compact chip shown on a square |
 | `components/TeamBadge.tsx` | Original geometric team mark (not an official logo) |
 | `components/Confetti.tsx` | Dependency-free canvas confetti |

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FREE_POSITIONS, TILES, type Tile } from "@/lib/board";
 import { DRIVERS, driverById } from "@/lib/drivers";
+import { renderBoardPng } from "@/lib/exportBoard";
 import DriverCard, { DriverChip } from "@/components/DriverCard";
 import Confetti from "@/components/Confetti";
 import GridLogo from "@/components/GridLogo";
@@ -51,6 +52,7 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
   const [toast, setToast] = useState<Toast | null>(null);
   const [burst, setBurst] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [busy, setBusy] = useState<"save" | "share" | null>(null);
 
   const audioRef = useRef<AudioContext | null>(null);
   const toastId = useRef(0);
@@ -318,6 +320,79 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
     say("Paddock shuffled", "Driver cards reordered.");
   }, [beep, say]);
 
+  /* ---------- board snapshot ---------- */
+
+  /** Renders the board to a PNG, reusing the live board's resolved fonts. */
+  const buildImage = useCallback(() => {
+    const boardEl = boardRef.current;
+    const captionEl = boardEl?.querySelector(".tile-caption");
+    const fontBody = boardEl ? getComputedStyle(boardEl).fontFamily : "sans-serif";
+    const fontDisplay = captionEl ? getComputedStyle(captionEl).fontFamily : fontBody;
+
+    return renderBoardPng({
+      board,
+      placed: placedCount,
+      total: DRIVERS.length,
+      time: clock(elapsed),
+      fontBody,
+      fontDisplay,
+    });
+  }, [board, placedCount, elapsed]);
+
+  const downloadBlob = useCallback((blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "grid-the-grill.png";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, []);
+
+  const saveImage = useCallback(async () => {
+    setBusy("save");
+    try {
+      downloadBlob(await buildImage());
+      beep(660, 0.12);
+      say("Saved", "Board snapshot downloaded as a PNG.", "good");
+    } catch (error) {
+      say("Export failed", error instanceof Error ? error.message : "Could not render the board.");
+    } finally {
+      setBusy(null);
+    }
+  }, [buildImage, downloadBlob, beep, say]);
+
+  const shareImage = useCallback(async () => {
+    setBusy("share");
+    try {
+      const blob = await buildImage();
+      const file = new File([blob], "grid-the-grill.png", { type: "image/png" });
+      const text = `My 2026 grid — ${placedCount}/${DRIVERS.length} placed.`;
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Grid the Grill", text });
+        say("Shared", "Board handed to the share sheet.", "good");
+        return;
+      }
+
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        say("Copied", "Board image is on your clipboard.", "good");
+        return;
+      }
+
+      downloadBlob(blob);
+      say("Downloaded instead", "Sharing isn't available in this browser.");
+    } catch (error) {
+      // Dismissing the OS share sheet rejects with AbortError — not a failure.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      say("Share failed", error instanceof Error ? error.message : "Could not share the board.");
+    } finally {
+      setBusy(null);
+    }
+  }, [buildImage, downloadBlob, placedCount, say]);
+
   const copyResult = useCallback(async () => {
     const lines = TRAIT_POSITIONS.map((pos) => {
       const tile = TILES[pos];
@@ -352,6 +427,9 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
           onShuffle={shuffleTray}
           onClear={clearBoard}
           onCopy={copyResult}
+          onSave={saveImage}
+          onShare={shareImage}
+          busy={busy}
           soundOn={soundOn}
           onToggleSound={() => setSoundOn((s) => !s)}
         />
@@ -479,17 +557,24 @@ function Controls({
   onShuffle,
   onClear,
   onCopy,
+  onSave,
+  onShare,
+  busy,
   soundOn,
   onToggleSound,
 }: {
   onShuffle: () => void;
   onClear: () => void;
   onCopy: () => void;
+  onSave: () => void;
+  onShare: () => void;
+  busy: "save" | "share" | null;
   soundOn: boolean;
   onToggleSound: () => void;
 }) {
   const base =
-    "inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border px-3.5 font-display text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-200";
+    "inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border px-3.5 font-display text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-200 disabled:cursor-wait disabled:opacity-60";
+  const ghost = `${base} border-white/12 bg-white/[0.04] text-ink hover:bg-white/[0.1]`;
 
   return (
     <div className="flex flex-wrap justify-center gap-2">
@@ -497,11 +582,24 @@ function Controls({
         <IconShuffle />
         Shuffle paddock
       </button>
-      <button type="button" onClick={onClear} className={`${base} border-white/12 bg-white/[0.04] text-ink hover:bg-white/[0.1]`}>
+      <button type="button" onClick={onClear} className={ghost}>
         <IconReset />
         Clear board
       </button>
-      <button type="button" onClick={onCopy} className={`${base} border-white/12 bg-white/[0.04] text-ink hover:bg-white/[0.1]`}>
+      <button type="button" onClick={onSave} disabled={busy !== null} className={ghost}>
+        <IconCamera />
+        {busy === "save" ? "Saving…" : "Save PNG"}
+      </button>
+      <button
+        type="button"
+        onClick={onShare}
+        disabled={busy !== null}
+        className={`${base} border-amber/40 bg-amber/10 text-ink hover:bg-amber/20`}
+      >
+        <IconShareNodes />
+        {busy === "share" ? "Sharing…" : "Share"}
+      </button>
+      <button type="button" onClick={onCopy} className={ghost}>
         <IconShare />
         Copy grid
       </button>
@@ -720,6 +818,26 @@ function IconShare() {
     <svg {...iconProps}>
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function IconCamera() {
+  return (
+    <svg {...iconProps}>
+      <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="12.5" r="3.5" />
+    </svg>
+  );
+}
+
+function IconShareNodes() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
     </svg>
   );
 }
