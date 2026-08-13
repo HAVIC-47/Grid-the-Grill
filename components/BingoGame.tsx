@@ -498,8 +498,8 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
           className="animate-toast pointer-events-none fixed inset-x-0 top-6 z-50 flex justify-center px-4"
         >
           <div
-            className={`flex items-center gap-3 rounded-md border px-4 py-3 backdrop-blur-md ${
-              toast.tone === "good" ? "border-amber/60 bg-amber/15" : "border-white/15 bg-panel/90"
+            className={`flex items-center gap-3 rounded-md border px-4 py-3 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.95)] ${
+              toast.tone === "good" ? "border-amber/70 bg-[#1a1205]" : "border-white/20 bg-panel"
             }`}
           >
             <span className={`h-8 w-1 rounded-full ${toast.tone === "good" ? "bg-amber" : "bg-white/40"}`} />
