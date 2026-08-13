@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { FREE_POSITIONS, TILES, type Tile } from "@/lib/board";
 import { DRIVERS, TEAMS, driverById } from "@/lib/drivers";
 import { renderBoardPng } from "@/lib/exportBoard";
+import { acceptedFor, isCorrect, rankFor, scoreBoard, type Verdict } from "@/lib/answers";
 import DriverCard, { DriverChip } from "@/components/DriverCard";
 import Confetti from "@/components/Confetti";
 import GridLogo from "@/components/GridLogo";
@@ -53,6 +54,7 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
   const [burst, setBurst] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState<"save" | "share" | null>(null);
+  const [checked, setChecked] = useState(false);
 
   const audioRef = useRef<AudioContext | null>(null);
   const toastId = useRef(0);
@@ -70,6 +72,7 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
   );
   const placedCount = placedIds.size;
   const complete = placedCount === DRIVERS.length;
+  const scorecard = useMemo(() => scoreBoard(board), [board]);
   const running = hydrated && placedCount > 0 && !complete;
 
   /* ---------- persistence ---------- */
@@ -153,6 +156,8 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
     (driverId: number, from: DropTarget, to: DropTarget) => {
       if (from === to) return;
 
+      setChecked(false); // any change invalidates the last scoring pass
+
       setBoard((prev) => {
         const next = [...prev];
         if (typeof from === "number") next[from] = null;
@@ -170,9 +175,8 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
 
         const filled = next.filter((v) => v !== null).length;
         if (filled === DRIVERS.length) {
-          setBurst((b) => b + 1);
-          beep(880, 0.4);
-          say("Grid locked in", `All 22 drivers placed in ${clock(elapsed)}.`, "good");
+          beep(760, 0.2);
+          say("Grid locked in", "Hit Check answers for your final score.", "good");
         } else {
           beep(620, 0.07);
         }
@@ -181,7 +185,7 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
 
       setSelected(null);
     },
-    [beep, elapsed, say],
+    [beep, say],
   );
 
   /* ---------- pointer drag ---------- */
@@ -300,10 +304,35 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
 
   /* ---------- actions ---------- */
 
+  const checkGrid = useCallback(() => {
+    if (checked) {
+      setChecked(false);
+      return;
+    }
+    if (placedCount === 0) {
+      say("Nothing to score", "Place at least one driver first.");
+      return;
+    }
+
+    setChecked(true);
+    const { correct, total } = scorecard;
+    if (correct === total) {
+      setBurst((b) => b + 1);
+      beep(920, 0.5);
+    } else if (correct > total / 2) {
+      setBurst((b) => b + 1);
+      beep(720, 0.25);
+    } else {
+      beep(340, 0.18);
+    }
+    say(`${correct}/${total} correct`, rankFor(correct, total), correct > total / 2 ? "good" : "info");
+  }, [checked, placedCount, scorecard, beep, say]);
+
   const clearBoard = useCallback(() => {
     setBoard(emptyBoard());
     setSelected(null);
     setElapsed(0);
+    setChecked(false);
     say("Board cleared", "Every driver is back in the paddock.");
   }, [say]);
 
@@ -316,6 +345,7 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
       }
       return next;
     });
+    setChecked(false);
     beep(420, 0.1);
     say("Paddock shuffled", "Driver cards reordered.");
   }, [beep, say]);
@@ -334,10 +364,13 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
       placed: placedCount,
       total: DRIVERS.length,
       time: clock(elapsed),
+      score: checked
+        ? { correct: scorecard.correct, total: scorecard.total, verdicts: scorecard.verdicts }
+        : null,
       fontBody,
       fontDisplay,
     });
-  }, [board, placedCount, elapsed]);
+  }, [board, placedCount, elapsed, checked, scorecard]);
 
   const downloadBlob = useCallback((blob: Blob) => {
     const url = URL.createObjectURL(blob);
@@ -398,10 +431,15 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
       const tile = TILES[pos];
       if (tile.kind !== "fact") return "";
       const id = board[pos];
-      return `${tile.caption} → ${id === null ? "—" : `${driverById(id).first} ${driverById(id).last}`}`;
+      const pick = id === null ? "—" : `${driverById(id).first} ${driverById(id).last}`;
+      const mark = checked && id !== null ? (isCorrect(pos, id) ? " ✅" : " ❌") : "";
+      return `${tile.caption} → ${pick}${mark}`;
     }).filter(Boolean);
 
-    const text = ["GRID THE GRILL — my 2026 grid", `${placedCount}/22 placed · ${clock(elapsed)}`, "", ...lines].join("\n");
+    const header = checked
+      ? `Score ${scorecard.correct}/${scorecard.total} · ${clock(elapsed)}`
+      : `${placedCount}/22 placed · ${clock(elapsed)}`;
+    const text = ["GRID THE GRILL — my 2026 grid", header, "", ...lines].join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
@@ -409,7 +447,7 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
     } catch {
       say("Copy blocked", "The browser denied clipboard access.");
     }
-  }, [board, elapsed, placedCount, say]);
+  }, [board, checked, elapsed, placedCount, scorecard, say]);
 
   const dragDriver = drag ? driverById(drag.driverId) : null;
 
@@ -424,6 +462,8 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
         <Stats placedCount={placedCount} elapsed={elapsed} running={running} complete={complete} />
 
         <Controls
+          onCheck={checkGrid}
+          checked={checked}
           onShuffle={shuffleTray}
           onClear={clearBoard}
           onCopy={copyResult}
@@ -441,18 +481,23 @@ export default function BingoGame({ children }: { children?: React.ReactNode }) 
         board={board}
         hover={hover}
         selected={selected}
+        verdicts={checked ? scorecard.verdicts : null}
         onSquarePointerDown={startDrag}
         onSquareActivate={onSquareActivate}
       />
 
-      <Tray
-        drivers={trayDrivers}
-        selected={selected}
-        hover={hover}
-        dragging={drag?.moved ? drag.driverId : null}
-        onCardPointerDown={startDrag}
-        onActivate={onTrayActivate}
-      />
+      {checked ? (
+        <Results scorecard={scorecard} board={board} onKeepPlaying={() => setChecked(false)} onClear={clearBoard} />
+      ) : (
+        <Tray
+          drivers={trayDrivers}
+          selected={selected}
+          hover={hover}
+          dragging={drag?.moved ? drag.driverId : null}
+          onCardPointerDown={startDrag}
+          onActivate={onTrayActivate}
+        />
+      )}
 
       {dragDriver && drag && (
         <div
@@ -554,6 +599,8 @@ function Stats({
 }
 
 function Controls({
+  onCheck,
+  checked,
   onShuffle,
   onClear,
   onCopy,
@@ -563,6 +610,8 @@ function Controls({
   soundOn,
   onToggleSound,
 }: {
+  onCheck: () => void;
+  checked: boolean;
   onShuffle: () => void;
   onClear: () => void;
   onCopy: () => void;
@@ -578,6 +627,19 @@ function Controls({
 
   return (
     <div className="flex flex-wrap justify-center gap-2">
+      <button
+        type="button"
+        onClick={onCheck}
+        aria-pressed={checked}
+        className={`${base} ${
+          checked
+            ? "border-white/12 bg-white/[0.04] text-ink hover:bg-white/[0.1]"
+            : "border-[#22c55e]/60 bg-[#22c55e]/15 text-ink hover:bg-[#22c55e]/25"
+        }`}
+      >
+        <IconCheck />
+        {checked ? "Hide answers" : "Check answers"}
+      </button>
       <button type="button" onClick={onShuffle} className={`${base} border-speed/50 bg-speed/12 text-ink hover:bg-speed/25`}>
         <IconShuffle />
         Shuffle paddock
@@ -621,6 +683,7 @@ function Board({
   board,
   hover,
   selected,
+  verdicts,
   onSquarePointerDown,
   onSquareActivate,
 }: {
@@ -628,6 +691,7 @@ function Board({
   board: (number | null)[];
   hover: number | "tray" | null;
   selected: number | null;
+  verdicts: Record<number, Verdict> | null;
   onSquarePointerDown: (e: React.PointerEvent, driverId: number, from: number) => void;
   onSquareActivate: (pos: number) => void;
 }) {
@@ -648,6 +712,7 @@ function Board({
                 driverId={board[pos] ?? null}
                 hovered={hover === pos}
                 armed={selected !== null}
+                verdict={verdicts ? (verdicts[pos] ?? null) : null}
                 onPointerDown={onSquarePointerDown}
                 onActivate={onSquareActivate}
               />
@@ -665,6 +730,7 @@ function Square({
   driverId,
   hovered,
   armed,
+  verdict,
   onPointerDown,
   onActivate,
 }: {
@@ -673,6 +739,7 @@ function Square({
   driverId: number | null;
   hovered: boolean;
   armed: boolean;
+  verdict: Verdict;
   onPointerDown: (e: React.PointerEvent, driverId: number, from: number) => void;
   onActivate: (pos: number) => void;
 }) {
@@ -710,8 +777,16 @@ function Square({
         driver
           ? "tile-placed touch-none"
           : "bg-gradient-to-b from-tile to-tile-deep hover:from-[#1c2028] hover:to-[#101319]"
-      } ${hovered ? "shadow-[inset_0_0_0_2px_#ff8a00]" : ""} ${
-        armed && !driver ? "shadow-[inset_0_0_0_1px_rgba(255,138,0,0.5)]" : ""
+      } ${
+        verdict === "correct"
+          ? "shadow-[inset_0_0_0_2px_#22c55e]"
+          : verdict === "wrong"
+            ? "shadow-[inset_0_0_0_2px_#ff3b30]"
+            : hovered
+              ? "shadow-[inset_0_0_0_2px_#ff8a00]"
+              : armed && !driver
+                ? "shadow-[inset_0_0_0_1px_rgba(255,138,0,0.5)]"
+                : ""
       }`}
     >
       <span
@@ -729,10 +804,121 @@ function Square({
         {tile.text}
       </span>
 
+      {verdict && (
+        <span
+          className={`absolute top-1 right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full ${
+            verdict === "correct" ? "bg-[#22c55e]" : "bg-[#ff3b30]"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-2.5 w-2.5">
+            <path
+              d={verdict === "correct" ? "M4 13l5 5L20 6" : "M6 6l12 12M18 6L6 18"}
+              fill="none"
+              stroke="#06070a"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      )}
+
       <span className="tile-slot relative z-10 mt-1 flex w-full items-stretch">
         {driver ? <DriverChip driver={driver} /> : <span className="mt-auto h-[2px] w-full rounded-full bg-white/10" />}
       </span>
     </button>
+  );
+}
+
+function Results({
+  scorecard,
+  board,
+  onKeepPlaying,
+  onClear,
+}: {
+  scorecard: ReturnType<typeof scoreBoard>;
+  board: (number | null)[];
+  onKeepPlaying: () => void;
+  onClear: () => void;
+}) {
+  const { correct, total, answered, misses } = scorecard;
+  const pct = Math.round((correct / total) * 100);
+  const perfect = correct === total;
+
+  return (
+    <section
+      aria-label="Final score"
+      className="w-full max-w-[860px] min-h-0 rounded-lg border border-white/12 bg-panel p-4 lg:col-start-1 lg:row-start-2 lg:max-h-full lg:max-w-none lg:overflow-y-auto"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-display text-[0.62rem] tracking-[0.2em] text-muted uppercase">Final score</p>
+          <p className="font-display text-4xl leading-none font-bold tabular-nums sm:text-5xl">
+            {correct}
+            <span className="text-muted">/{total}</span>
+          </p>
+          <p className={`font-display mt-1 text-xs tracking-wide uppercase ${perfect ? "text-amber" : "text-speed"}`}>
+            {rankFor(correct, total)}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onKeepPlaying}
+            className="inline-flex h-10 cursor-pointer items-center rounded-md border border-white/12 bg-white/[0.04] px-3 font-display text-[0.7rem] font-semibold tracking-[0.12em] uppercase transition-colors duration-200 hover:bg-white/[0.1]"
+          >
+            Keep playing
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="inline-flex h-10 cursor-pointer items-center rounded-md border border-speed/50 bg-speed/12 px-3 font-display text-[0.7rem] font-semibold tracking-[0.12em] uppercase transition-colors duration-200 hover:bg-speed/25"
+          >
+            Play again
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full transition-[width] duration-700 ${perfect ? "bg-amber" : "bg-[#22c55e]"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-xs text-muted">
+        {answered}/{total} squares filled · {pct}% correct
+      </p>
+
+      {misses.length > 0 && (
+        <div className="mt-4">
+          <p className="font-display text-[0.62rem] tracking-[0.2em] text-muted uppercase">
+            Where it went wrong
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {misses.map((pos) => {
+              const tile = TILES[pos];
+              if (tile.kind !== "fact") return null;
+              const picked = board[pos];
+              return (
+                <li key={pos} className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-xs">
+                  <p className="font-display text-[0.62rem] tracking-[0.14em] text-muted uppercase">
+                    {tile.caption}
+                  </p>
+                  <p className="mt-1 text-[#ff6b63]">
+                    You picked {picked === null ? "—" : `${driverById(picked).first} ${driverById(picked).last}`}
+                  </p>
+                  <p className="text-[#5ddb87]">
+                    {acceptedFor(pos)
+                      .map((id) => `${driverById(id).first} ${driverById(id).last}`)
+                      .join(" · ")}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -833,6 +1019,14 @@ function IconShare() {
     <svg {...iconProps}>
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg {...iconProps}>
+      <path d="M20 6L9 17l-5-5" />
     </svg>
   );
 }

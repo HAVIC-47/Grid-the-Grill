@@ -6,6 +6,8 @@ export type ExportOptions = {
   placed: number;
   total: number;
   time: string;
+  /** Present once the player has checked their answers. */
+  score?: { correct: number; total: number; verdicts: Record<number, "correct" | "wrong" | null> } | null;
   /** Computed font-family strings pulled off the live board so the PNG matches the UI. */
   fontBody: string;
   fontDisplay: string;
@@ -159,10 +161,10 @@ export async function renderBoardPng(o: ExportOptions): Promise<Blob> {
   ctx.font = `600 15px ${o.fontDisplay}`;
   ctx.fillStyle = MUTED;
   ctx.textAlign = "right";
-  ctx.fillText(`${o.placed}/${o.total} PLACED`, W - PAD, titleY - 26);
-  ctx.fillStyle = INK;
-  ctx.font = `700 26px ${o.fontDisplay}`;
-  ctx.fillText(o.time, W - PAD, titleY);
+  ctx.fillText(o.score ? "FINAL SCORE" : `${o.placed}/${o.total} PLACED`, W - PAD, titleY - 26);
+  ctx.fillStyle = o.score ? "#5ddb87" : INK;
+  ctx.font = `700 34px ${o.fontDisplay}`;
+  ctx.fillText(o.score ? `${o.score.correct}/${o.score.total}` : o.time, W - PAD, titleY + 2);
 
   /* ---- board frame ---- */
   const boardX = PAD;
@@ -288,6 +290,38 @@ export async function renderBoardPng(o: ExportOptions): Promise<Blob> {
       ctx.globalAlpha = 0.75;
       ctx.fillText(String(driver.number), chipX + chipW - 10, chipY + (chipH - 3) / 2);
       ctx.globalAlpha = 1;
+    }
+
+    const verdict = o.score?.verdicts[pos] ?? null;
+    if (verdict) {
+      const good = verdict === "correct";
+      ctx.strokeStyle = good ? "#22c55e" : "#ff3b30";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 1.5, y + 1.5, cellW - 3, cellH - 3);
+
+      const r = 10;
+      const mx = x + cellW - r - 7;
+      const my = y + r + 7;
+      ctx.fillStyle = good ? "#22c55e" : "#ff3b30";
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#06070a";
+      ctx.lineWidth = 2.6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      if (good) {
+        ctx.moveTo(mx - 4.5, my);
+        ctx.lineTo(mx - 1, my + 3.5);
+        ctx.lineTo(mx + 5, my - 3.5);
+      } else {
+        ctx.moveTo(mx - 4, my - 4);
+        ctx.lineTo(mx + 4, my + 4);
+        ctx.moveTo(mx + 4, my - 4);
+        ctx.lineTo(mx - 4, my + 4);
+      }
+      ctx.stroke();
     }
   });
 
